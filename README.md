@@ -1,16 +1,41 @@
-# React + Vite
+# HIMS
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+HIMS is a modular web application project designed with scalability and maintainability in mind.  
+The repository provides the core structure for a modern application, including development tooling, environment configuration, and a clean project architecture suitable for expansion.
 
-Currently, two official plugins are available:
+The project is intended as a foundation that can evolve with additional modules, integrations, and features over time.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+---
 
-## React Compiler
+## Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Modular and organized project structure
+- Environment-based configuration using `.env`
+- Development-friendly tooling
+- Scalable architecture for future expansion
+- Designed for iterative development
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Tech Stack
+
+Typical technologies used in the project include:
+
+- JavaScript / TypeScript
+- Node.js
+- Modern frontend tooling (e.g. Vite)
+- npm ecosystem
+
+*(Update this section if the stack changes.)*
+
+---
+
+## Project Structure
+HIMS/
+│
+├── src/ # Main application source code
+├── public/ # Static assets
+├── dist/ # Production build output
+├── .env.example # Environment variable template
+├── package.json # Dependencies and scripts
+└── README.md
