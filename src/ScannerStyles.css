@@ -1,0 +1,217 @@
+.lookup-container {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  font-family: var(--font-sans);
+  background: var(--surface);
+  border-radius: 22px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.title {
+  text-align: center;
+  color: var(--ink);
+}
+
+.mode-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.mode-buttons button {
+  background: rgba(47, 143, 131, 0.14);
+  border: 1px solid transparent;
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.2s;
+  font-weight: 600;
+}
+
+.mode-buttons button.active {
+  background: var(--accent-2);
+  color: white;
+}
+
+.manual-entry input {
+  width: 70%;
+  padding: 0.5rem;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+}
+
+.manual-entry button {
+  margin-left: 0.5rem;
+  background: var(--accent-2);
+  border: none;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+}
+
+.camera-entry {
+  text-align: center;
+}
+
+.scan-options {
+  margin-top: 0.5rem;
+  display: flex;
+  justify-content: center;
+}
+
+.scan-option {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.scan-option input {
+  accent-color: var(--accent-2);
+}
+
+.secondary-btn {
+  margin-top: 0.75rem;
+  background: transparent;
+  border: 1px dashed var(--accent-2);
+  color: var(--accent-2);
+  padding: 0.5rem 1rem;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.secondary-btn:hover {
+  border-style: solid;
+}
+
+.scanner-video {
+  width: 100%;
+  max-width: 350px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(31, 42, 50, 0.2);
+}
+
+.scanner-controls {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.scanner-control {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  width: min(320px, 100%);
+}
+
+.scanner-control select {
+  padding: 0.45rem 0.6rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--ink);
+}
+
+.control-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.control-btn {
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--ink);
+  padding: 0.4rem 0.8rem;
+  border-radius: 999px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.control-btn.active {
+  background: var(--accent-2);
+  border-color: var(--accent-2);
+  color: #fff;
+}
+
+.control-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.hint {
+  color: #777;
+  font-size: 0.9rem;
+}
+
+.product-card {
+  margin-top: 1rem;
+  background: var(--surface-2);
+  border-radius: 16px;
+  padding: 1rem;
+  box-shadow: 0 3px 10px rgba(31, 42, 50, 0.12);
+  border: 1px solid var(--border);
+}
+
+.product-card img {
+  display: block;
+  margin: auto;
+  max-width: 150px;
+  border-radius: 8px;
+}
+
+.product-card label {
+  display: block;
+  margin: 0.5rem 0;
+}
+
+.product-card select,
+.product-card input {
+  width: 100%;
+  padding: 0.4rem;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+}
+
+.save-btn {
+  width: 100%;
+  background: var(--accent);
+  border: none;
+  padding: 0.7rem;
+  border-radius: 10px;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.save-btn:hover {
+  background: #d45f3d;
+}
+
+.error {
+  color: #c6554f;
+  font-weight: bold;
+  text-align: center;
+}
+
+.success {
+  color: #2f8f83;
+  text-align: center;
+}
+
+.status {
+  color: #999;
+  text-align: center;
+}
