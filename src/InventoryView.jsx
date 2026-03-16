@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabaseClient";
 import { DEFAULT_SECTIONS } from "./householdService";
 import TagPicker from "./TagPicker";
+import { useI18n } from "./i18n";
+import { pickTranslation } from "./localize";
 import {
   applyLocalMutation,
   enqueueAction,
@@ -42,7 +44,16 @@ const getLowStockForTags = (tags, tagRuleMap, fallbackThreshold) => {
   return Math.max(...values);
 };
 
-export default function InventoryView({ user, householdId, sections = [], settings, tagRules = [] }) {
+export default function InventoryView({
+  user,
+  householdId,
+  sections = [],
+  settings,
+  tagRules = [],
+  onManageTags,
+  uiPrefs,
+}) {
+  const { t, lang } = useI18n();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -52,12 +63,16 @@ export default function InventoryView({ user, householdId, sections = [], settin
   const [stateFilter, setStateFilter] = useState("all");
   const [expiryFilter, setExpiryFilter] = useState("all");
   const [tagFilter, setTagFilter] = useState("all");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
   const [editingId, setEditingId] = useState(null);
   const [editValues, setEditValues] = useState({});
   const [batchSection, setBatchSection] = useState("");
   const defaultAlertDays = settings?.alert_days ?? 7;
   const defaultLowStock = settings?.low_stock_threshold ?? 1;
+  const showImages = uiPrefs?.showImages !== false;
+  const compactMode = Boolean(uiPrefs?.compactMode);
+  const currentLang = uiPrefs?.language || lang || "en";
 
   const sectionOptions = sections.length
     ? sections.map((s) => s.name)
@@ -100,7 +115,7 @@ export default function InventoryView({ user, householdId, sections = [], settin
 
     if (error) {
       console.error(error);
-      setError("Failed to load inventory.");
+      setError(t("inventory.failed"));
     } else {
       setItems(data || []);
       saveCachedItems(householdId, data || []);
@@ -232,7 +247,7 @@ export default function InventoryView({ user, householdId, sections = [], settin
     const { error } = await supabase.from("items").update(updated).eq("id", id);
     if (error) {
       console.error(error);
-      setError("Failed to update item.");
+      setError(t("inventory.update_failed"));
       return;
     }
 
@@ -244,8 +259,23 @@ export default function InventoryView({ user, householdId, sections = [], settin
   };
 
   const saveEdit = async (item) => {
+    const trimmedName = editValues.name.trim();
+    if (!trimmedName) {
+      setError(t("scanner.name_required"));
+      return;
+    }
+    const existingTranslations =
+      item.name_translations && typeof item.name_translations === "object"
+        ? item.name_translations
+        : {};
+    const nextTranslations = {
+      ...existingTranslations,
+      [currentLang]: trimmedName,
+      original: existingTranslations.original || trimmedName,
+    };
     const updates = {
-      name: editValues.name.trim(),
+      name: trimmedName,
+      name_translations: nextTranslations,
       brand: editValues.brand.trim(),
       quantity: Number(editValues.quantity) || 1,
       expiry_date: editValues.expiry_date || null,
@@ -297,7 +327,7 @@ export default function InventoryView({ user, householdId, sections = [], settin
     const { error } = await supabase.from("items").delete().in("id", selectedIds);
     if (error) {
       console.error(error);
-      setError("Failed to delete items.");
+      setError(t("inventory.delete_failed"));
       return;
     }
 
@@ -361,7 +391,7 @@ export default function InventoryView({ user, householdId, sections = [], settin
 
   const importCsv = async (file) => {
     if (!file || !navigator.onLine) {
-      setError("CSV import requires an online connection.");
+      setError(t("inventory.import_requires_online"));
       return;
     }
 
@@ -396,7 +426,7 @@ export default function InventoryView({ user, householdId, sections = [], settin
     const { data, error } = await supabase.from("items").insert(mapped).select("*");
     if (error) {
       console.error(error);
-      setError("Failed to import CSV.");
+      setError(t("inventory.import_failed"));
       return;
     }
 
@@ -407,80 +437,106 @@ export default function InventoryView({ user, householdId, sections = [], settin
     });
   };
 
-  if (loading) return <p>Loading inventory...</p>;
+  if (loading) return <p>{t("inventory.loading")}</p>;
   if (error) return <p style={{ color: "red" }}>{error}</p>;
 
   return (
     <div style={{ width: "100%" }}>
       <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-        <h2>Inventory</h2>
+        <h2>{t("inventory.title")}</h2>
         <p>
-          {expiredCount} expired, {expiringSoonCount} expiring soon (tag rules applied)
-          {offline ? " — offline" : ""}
+          {t("inventory.expired_count", { count: expiredCount })},{" "}
+          {t("inventory.expiring_count", { count: expiringSoonCount })}
+          {offline ? ` — ${t("common.offline")}` : ""}
         </p>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
-          <button onClick={() => setExpiryFilter("all")}>All</button>
-          <button onClick={() => setExpiryFilter("expiring")}>Expiring Soon</button>
-          <button onClick={() => setExpiryFilter("expired")}>Expired</button>
-          <button onClick={exportCsv}>Export CSV</button>
-          <label style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-            Import CSV
-            <input
-              type="file"
-              accept=".csv"
-              onChange={(e) => importCsv(e.target.files?.[0])}
-            />
-          </label>
+        <div className="filters-toggle-row">
+          <button className="pill-btn" onClick={() => setFiltersOpen((prev) => !prev)}>
+            {filtersOpen ? t("inventory.hide_filters") : t("inventory.filters")}
+          </button>
         </div>
 
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search name, brand, barcode"
-          />
-          <select value={sectionFilter} onChange={(e) => setSectionFilter(e.target.value)}>
-            <option value="all">All sections</option>
-            {sectionOptions.map((section) => (
-              <option key={section} value={section}>
-                {section}
-              </option>
-            ))}
-          </select>
-          <select value={stateFilter} onChange={(e) => setStateFilter(e.target.value)}>
-            <option value="all">All states</option>
-            <option value="unopened">Unopened</option>
-            <option value="opened">Opened</option>
-            <option value="nearing expiry">Nearing expiry</option>
-            <option value="soon consumed">Soon consumed</option>
-            <option value="none left">None left</option>
-          </select>
-          <select value={tagFilter} onChange={(e) => setTagFilter(e.target.value)}>
-            <option value="all">All tags</option>
-            {tagsList.map((tag) => (
-              <option key={tag} value={tag}>
-                {tag}
-              </option>
-            ))}
-          </select>
+        <div className={`filters-panel ${filtersOpen ? "open" : ""}`}>
+          <div className="toolbar-row">
+            <button
+              className={`pill-btn ${expiryFilter === "all" ? "active" : ""}`}
+              onClick={() => setExpiryFilter("all")}
+            >
+              {t("common.all")}
+            </button>
+            <button
+              className={`pill-btn ${expiryFilter === "expiring" ? "active" : ""}`}
+              onClick={() => setExpiryFilter("expiring")}
+            >
+              {t("inventory.expiring_soon")}
+            </button>
+            <button
+              className={`pill-btn ${expiryFilter === "expired" ? "active" : ""}`}
+              onClick={() => setExpiryFilter("expired")}
+            >
+              {t("inventory.expired")}
+            </button>
+            <button className="pill-btn" onClick={exportCsv}>{t("inventory.export_csv")}</button>
+            <label className="pill-btn file-pill">
+              {t("inventory.import_csv")}
+              <input
+                type="file"
+                accept=".csv"
+                onChange={(e) => importCsv(e.target.files?.[0])}
+              />
+            </label>
+          </div>
+
+          <div className="toolbar-row">
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t("inventory.search_placeholder")}
+            />
+            <select value={sectionFilter} onChange={(e) => setSectionFilter(e.target.value)}>
+              <option value="all">{t("inventory.all_sections")}</option>
+              {sectionOptions.map((section) => (
+                <option key={section} value={section}>
+                  {section}
+                </option>
+              ))}
+            </select>
+            <select value={stateFilter} onChange={(e) => setStateFilter(e.target.value)}>
+              <option value="all">{t("inventory.all_states")}</option>
+              <option value="unopened">{t("state.unopened")}</option>
+              <option value="opened">{t("state.opened")}</option>
+              <option value="nearing expiry">{t("state.nearing_expiry")}</option>
+              <option value="soon consumed">{t("state.soon_consumed")}</option>
+              <option value="none left">{t("state.none_left")}</option>
+            </select>
+            <select value={tagFilter} onChange={(e) => setTagFilter(e.target.value)}>
+              <option value="all">{t("inventory.all_tags")}</option>
+              {tagsList.map((tag) => (
+                <option key={tag} value={tag}>
+                  {tag}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
       {selectedIds.length > 0 && (
-        <div style={{ marginTop: "1rem", display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
-          <span>{selectedIds.length} selected</span>
-          <button onClick={clearSelection}>Clear</button>
-          <button onClick={() => handleBatchState("none left")}>Mark consumed</button>
+        <div className="toolbar-row" style={{ marginTop: "1rem" }}>
+          <span>{t("inventory.selected", { count: selectedIds.length })}</span>
+          <button className="pill-btn" onClick={clearSelection}>{t("common.clear")}</button>
+          <button className="pill-btn" onClick={() => handleBatchState("none left")}>
+            {t("inventory.mark_consumed")}
+          </button>
           <select value={batchSection} onChange={(e) => setBatchSection(e.target.value)}>
-            <option value="">Move to section</option>
+            <option value="">{t("inventory.move_section")}</option>
             {sectionOptions.map((section) => (
               <option key={section} value={section}>
                 {section}
               </option>
             ))}
           </select>
-          <button onClick={handleBatchSection}>Apply</button>
-          <button onClick={handleBatchDelete}>Delete</button>
+          <button className="pill-btn" onClick={handleBatchSection}>{t("common.apply")}</button>
+          <button className="pill-btn danger" onClick={handleBatchDelete}>{t("common.delete")}</button>
         </div>
       )}
 
@@ -494,30 +550,34 @@ export default function InventoryView({ user, householdId, sections = [], settin
             }
             onChange={toggleSelectAll}
           />
-          Select all
+          {t("inventory.select_all")}
         </label>
 
         {filteredItems.length === 0 ? (
-          <p>No items match your filters.</p>
+          <p>{t("inventory.no_match")}</p>
         ) : (
           <div
+            className={`inventory-grid${compactMode ? " compact" : ""}`}
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-              gap: "1rem",
+              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+              gap: compactMode ? "0.7rem" : "1rem",
               marginTop: "1rem",
             }}
           >
             {filteredItems.map((item) => {
               const isExpired = item.expiryDate && item.expiryDate < today;
+              const displayName =
+                pickTranslation(item.name_translations, item.name, currentLang) ||
+                t("shopping.unnamed");
               return (
                 <div
                   key={item.id}
                   style={{
-                    border: "1px solid #ccc",
+                    border: "1px solid var(--border)",
                     borderRadius: "10px",
-                    padding: "1rem",
-                    backgroundColor: isExpired ? "#ffe6e6" : "#f9f9f9",
+                    padding: compactMode ? "0.75rem" : "1rem",
+                    backgroundColor: isExpired ? "var(--danger-bg)" : "var(--surface-2)",
                   }}
                 >
                   <label style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
@@ -527,7 +587,7 @@ export default function InventoryView({ user, householdId, sections = [], settin
                       onChange={() => toggleSelect(item.id, item.pending)}
                       disabled={item.pending}
                     />
-                    Select
+                    {t("inventory.select")}
                   </label>
 
                   {editingId === item.id ? (
@@ -535,12 +595,12 @@ export default function InventoryView({ user, householdId, sections = [], settin
                       <input
                         value={editValues.name}
                         onChange={(e) => setEditValues({ ...editValues, name: e.target.value })}
-                        placeholder="Name"
+                        placeholder={t("scanner.name")}
                       />
                       <input
                         value={editValues.brand}
                         onChange={(e) => setEditValues({ ...editValues, brand: e.target.value })}
-                        placeholder="Brand"
+                        placeholder={t("scanner.brand")}
                       />
                       <input
                         type="number"
@@ -567,64 +627,83 @@ export default function InventoryView({ user, householdId, sections = [], settin
                         value={editValues.state}
                         onChange={(e) => setEditValues({ ...editValues, state: e.target.value })}
                       >
-                        <option value="unopened">Unopened</option>
-                        <option value="opened">Opened</option>
-                        <option value="nearing expiry">Nearing expiry</option>
-                        <option value="soon consumed">Soon consumed</option>
-                        <option value="none left">None left</option>
+                        <option value="unopened">{t("state.unopened")}</option>
+                        <option value="opened">{t("state.opened")}</option>
+                        <option value="nearing expiry">{t("state.nearing_expiry")}</option>
+                        <option value="soon consumed">{t("state.soon_consumed")}</option>
+                        <option value="none left">{t("state.none_left")}</option>
                       </select>
                       <TagPicker
                         availableTags={tagsList}
                         selectedTags={editValues.tags || []}
                         onChange={(next) => setEditValues({ ...editValues, tags: next })}
+                        onManageTags={onManageTags}
                       />
                       <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
-                        <button onClick={() => saveEdit(item)}>Save</button>
-                        <button onClick={cancelEdit}>Cancel</button>
+                        <button className="pill-btn accent" onClick={() => saveEdit(item)}>
+                          {t("common.save")}
+                        </button>
+                        <button className="pill-btn" onClick={cancelEdit}>
+                          {t("common.cancel")}
+                        </button>
                       </div>
                     </>
                   ) : (
                     <>
-                      {item.image_url ? (
-                        <img
-                          src={item.image_url}
-                          alt={item.name || "Item image"}
-                          style={{
-                            width: "100%",
-                            aspectRatio: "4 / 3",
-                            objectFit: "cover",
-                            objectPosition: "center",
-                            borderRadius: "12px",
-                            backgroundColor: "#f3f4f6",
-                          }}
-                        />
-                      ) : (
-                        <div
-                          style={{
-                            width: "100%",
-                            aspectRatio: "4 / 3",
-                            borderRadius: "12px",
-                            backgroundColor: "#f3f4f6",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            color: "#9ca3af",
-                            fontWeight: 600,
-                          }}
-                        >
-                          No image
-                        </div>
+                      {showImages && (
+                        item.image_url ? (
+                          <img
+                            src={item.image_url}
+                            alt={displayName || t("inventory.no_image")}
+                            style={{
+                              width: "100%",
+                              aspectRatio: "4 / 3",
+                              objectFit: "contain",
+                              objectPosition: "center",
+                              borderRadius: "12px",
+                              backgroundColor: "var(--surface-2)",
+                            }}
+                          />
+                        ) : (
+                          <div
+                            style={{
+                              width: "100%",
+                              aspectRatio: "4 / 3",
+                              borderRadius: "12px",
+                              backgroundColor: "var(--surface-2)",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              color: "var(--muted)",
+                              fontWeight: 600,
+                            }}
+                          >
+                            {t("inventory.no_image")}
+                          </div>
+                        )
                       )}
-                      <h3 style={{ marginTop: "0.5rem" }}>{item.name}</h3>
-                      <p><strong>Brand:</strong> {item.brand || "Unknown"}</p>
-                      <p><strong>Nutri-Score:</strong> {item.nutriscore?.toUpperCase() || "N/A"}</p>
-                      <p><strong>Expiry:</strong> {item.expiry_date || "-"}</p>
-                      <p><strong>Section:</strong> {item.section || "Unassigned"}</p>
-                      <p><strong>State:</strong> {item.state || "Unknown"}</p>
-                      <p><strong>Tags:</strong> {(item.tags || []).join(", ") || "-"}</p>
-                      {item.pending && <p style={{ color: "#cc8a2a" }}>Pending sync</p>}
-                      <button onClick={() => startEdit(item)} disabled={item.pending}>
-                        Quick edit
+                      <h3 style={{ marginTop: showImages ? "0.5rem" : "0" }}>
+                        {displayName}
+                      </h3>
+                      <p><strong>{t("scanner.brand")}:</strong> {item.brand || t("inventory.unknown")}</p>
+                      <p><strong>{t("scanner.nutriscore")}:</strong> {item.nutriscore?.toUpperCase() || "N/A"}</p>
+                      <p><strong>{t("scanner.expiry")}:</strong> {item.expiry_date || "-"}</p>
+                      <p><strong>{t("scanner.section")}:</strong> {item.section || t("inventory.unassigned")}</p>
+                      <p>
+                        <strong>{t("scanner.state")}:</strong>{" "}
+                        {item.state ? (
+                          item.state === "unopened" ? t("state.unopened")
+                          : item.state === "opened" ? t("state.opened")
+                          : item.state === "nearing expiry" ? t("state.nearing_expiry")
+                          : item.state === "soon consumed" ? t("state.soon_consumed")
+                          : item.state === "none left" ? t("state.none_left")
+                          : item.state
+                        ) : t("inventory.unknown")}
+                      </p>
+                      <p><strong>{t("scanner.tags")}:</strong> {(item.tags || []).join(", ") || "-"}</p>
+                      {item.pending && <p style={{ color: "var(--accent)" }}>{t("inventory.pending")}</p>}
+                      <button className="pill-btn" onClick={() => startEdit(item)} disabled={item.pending}>
+                        {t("inventory.quick_edit")}
                       </button>
                     </>
                   )}

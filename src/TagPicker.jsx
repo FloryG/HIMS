@@ -1,13 +1,19 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import "./TagPicker.css";
+import { useI18n } from "./i18n";
 
 const normalizeTag = (value) => (value || "").trim().toLowerCase();
 
-export default function TagPicker({ availableTags = [], selectedTags = [], onChange }) {
+export default function TagPicker({
+  availableTags = [],
+  selectedTags = [],
+  onChange,
+  onManageTags,
+}) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [localTags, setLocalTags] = useState([]);
-  const [newTag, setNewTag] = useState("");
 
   useEffect(() => {
     const merged = Array.from(
@@ -25,18 +31,6 @@ export default function TagPicker({ availableTags = [], selectedTags = [], onCha
     onChange?.(next);
   };
 
-  const handleAddTag = () => {
-    const normalized = normalizeTag(newTag);
-    if (!normalized) return;
-    if (!localTags.includes(normalized)) {
-      setLocalTags((prev) => [...prev, normalized]);
-    }
-    if (!selectedTags.includes(normalized)) {
-      onChange?.([...selectedTags, normalized]);
-    }
-    setNewTag("");
-  };
-
   useEffect(() => {
     if (!open) return;
     const handleKey = (event) => {
@@ -48,32 +42,44 @@ export default function TagPicker({ availableTags = [], selectedTags = [], onCha
     return () => window.removeEventListener("keydown", handleKey);
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+    const original = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = original;
+    };
+  }, [open]);
+
+  const handleManageTags = () => {
+    setOpen(false);
+    onManageTags?.();
+  };
+
   const modal = open
     ? createPortal(
         <div className="tag-modal-backdrop" onClick={() => setOpen(false)}>
-          <div className="tag-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="tag-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
             <div className="tag-modal-header">
-              <h4>Tags</h4>
+              <h4>{t("household.tags")}</h4>
               <button type="button" className="tag-close-btn" onClick={() => setOpen(false)}>
-                Close
+                {t("common.close")}
               </button>
             </div>
 
             <div className="tag-modal-body">
-              <div className="tag-create-row">
-                <input
-                  value={newTag}
-                  onChange={(e) => setNewTag(e.target.value)}
-                  placeholder="Create new tag"
-                />
-                <button type="button" onClick={handleAddTag}>
-                  Add
-                </button>
+              <div className="tag-manage-hint">
+                {t("tags.helper")}
+                {onManageTags && (
+                  <button type="button" className="tag-manage-btn" onClick={handleManageTags}>
+                    {t("tags.open")}
+                  </button>
+                )}
               </div>
 
               <div className="tag-options">
                 {localTags.length === 0 ? (
-                  <p>No tags yet.</p>
+                  <p>{t("tags.none")}</p>
                 ) : (
                   localTags.map((tag) => (
                     <label key={tag} className="tag-option">
@@ -91,7 +97,7 @@ export default function TagPicker({ availableTags = [], selectedTags = [], onCha
 
             <div className="tag-modal-actions">
               <button type="button" onClick={() => setOpen(false)}>
-                Done
+                {t("common.done")}
               </button>
             </div>
           </div>
@@ -103,7 +109,9 @@ export default function TagPicker({ availableTags = [], selectedTags = [], onCha
   return (
     <div className="tag-picker">
       <div className="tag-picker-chips">
-        {selectedTags.length === 0 && <span className="tag-picker-empty">No tags</span>}
+        {selectedTags.length === 0 && (
+          <span className="tag-picker-empty">{t("tags.no_tags")}</span>
+        )}
         {selectedTags.map((tag) => (
           <span key={tag} className="tag-chip">
             {tag}
@@ -113,7 +121,7 @@ export default function TagPicker({ availableTags = [], selectedTags = [], onCha
           type="button"
           className="tag-add-btn"
           onClick={() => setOpen(true)}
-          aria-label="Add tags"
+          aria-label={t("tags.add")}
         >
           +
         </button>

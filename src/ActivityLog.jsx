@@ -1,11 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabaseClient";
-
-const ACTION_LABELS = {
-  created: "Added",
-  updated: "Updated",
-  deleted: "Deleted",
-};
+import { useI18n } from "./i18n";
+import { pickTranslation } from "./localize";
 
 const formatDateTime = (value) => {
   if (!value) return "";
@@ -16,9 +12,6 @@ const formatDateTime = (value) => {
   }
 };
 
-const getEntryName = (entry) =>
-  entry?.data?.name || entry?.previous_data?.name || "Unnamed item";
-
 const getEntryBarcode = (entry) =>
   entry?.data?.barcode || entry?.previous_data?.barcode || "";
 
@@ -26,6 +19,7 @@ const getEntryTags = (entry) =>
   entry?.data?.tags || entry?.previous_data?.tags || [];
 
 export default function ActivityLog({ householdId }) {
+  const { t, lang } = useI18n();
   const [entries, setEntries] = useState([]);
   const [profiles, setProfiles] = useState({});
   const [loading, setLoading] = useState(true);
@@ -50,8 +44,8 @@ export default function ActivityLog({ householdId }) {
         console.error(error);
         const message =
           error.code === "42P01"
-            ? "Activity log is not set up yet. Run the latest supabase_migration.sql."
-            : "Failed to load activity log.";
+            ? t("activity.not_setup")
+            : t("activity.failed");
         setError(message);
         setEntries([]);
         setLoading(false);
@@ -74,7 +68,7 @@ export default function ActivityLog({ householdId }) {
         if (!profileError && profileData) {
           const map = {};
           profileData.forEach((profile) => {
-            map[profile.id] = profile.name || "Member";
+            map[profile.id] = profile.name || t("activity.member");
           });
           setProfiles(map);
         }
@@ -84,7 +78,23 @@ export default function ActivityLog({ householdId }) {
     };
 
     fetchLog();
-  }, [householdId]);
+  }, [householdId, t]);
+
+  const actionLabels = useMemo(
+    () => ({
+      created: t("activity.action.added"),
+      updated: t("activity.action.updated"),
+      deleted: t("activity.action.deleted"),
+    }),
+    [t]
+  );
+
+  const getEntryName = (entry) => {
+    const nameTranslations =
+      entry?.data?.name_translations || entry?.previous_data?.name_translations;
+    const fallback = entry?.data?.name || entry?.previous_data?.name || t("shopping.unnamed");
+    return pickTranslation(nameTranslations, fallback, lang);
+  };
 
   const filteredEntries = useMemo(() => {
     return entries.filter((entry) => {
@@ -98,27 +108,27 @@ export default function ActivityLog({ householdId }) {
     });
   }, [entries, actionFilter, query]);
 
-  if (loading) return <p>Loading activity...</p>;
+  if (loading) return <p>{t("activity.loading")}</p>;
   if (error) return <p style={{ color: "red" }}>{error}</p>;
 
   return (
     <div style={{ width: "100%" }}>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+      <div className="toolbar-row">
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search item name or barcode"
+          placeholder={t("activity.search_placeholder")}
         />
         <select value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>
-          <option value="all">All actions</option>
-          <option value="created">Added</option>
-          <option value="updated">Updated</option>
-          <option value="deleted">Deleted</option>
+          <option value="all">{t("activity.all_actions")}</option>
+          <option value="created">{t("activity.action.added")}</option>
+          <option value="updated">{t("activity.action.updated")}</option>
+          <option value="deleted">{t("activity.action.deleted")}</option>
         </select>
       </div>
 
       {filteredEntries.length === 0 ? (
-        <p style={{ marginTop: "1rem" }}>No activity yet.</p>
+        <p style={{ marginTop: "1rem" }}>{t("activity.none")}</p>
       ) : (
         <div
           style={{
@@ -134,30 +144,30 @@ export default function ActivityLog({ householdId }) {
             const tags = getEntryTags(entry);
             const userLabel = entry.user_id
               ? profiles[entry.user_id] || entry.user_id.slice(0, 8)
-              : "System";
+              : t("activity.system");
             return (
               <div
                 key={entry.id}
                 style={{
-                  border: "1px solid #d9d9d9",
+                  border: "1px solid var(--border)",
                   borderRadius: "12px",
                   padding: "0.9rem",
-                  backgroundColor: "#fff",
+                  backgroundColor: "var(--surface)",
                   display: "flex",
                   flexDirection: "column",
                   gap: "0.4rem",
                 }}
               >
-                <strong>{ACTION_LABELS[entry.action] || entry.action}</strong>
-                <span style={{ color: "#4b5563" }}>{formatDateTime(entry.created_at)}</span>
+                <strong>{actionLabels[entry.action] || entry.action}</strong>
+                <span style={{ color: "var(--muted)" }}>{formatDateTime(entry.created_at)}</span>
                 <span>{name}</span>
-                {barcode && <span style={{ color: "#6b7280" }}>Barcode: {barcode}</span>}
+                {barcode && <span style={{ color: "var(--muted)" }}>{t("activity.barcode")}: {barcode}</span>}
                 {tags?.length ? (
-                  <span style={{ color: "#6b7280" }}>
-                    Tags: {tags.join(", ")}
+                  <span style={{ color: "var(--muted)" }}>
+                    {t("activity.tags")}: {tags.join(", ")}
                   </span>
                 ) : null}
-                <span style={{ color: "#6b7280" }}>By: {userLabel}</span>
+                <span style={{ color: "var(--muted)" }}>{t("activity.by")}: {userLabel}</span>
               </div>
             );
           })}

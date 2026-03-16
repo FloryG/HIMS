@@ -14,7 +14,7 @@
   justify-content: center;
   padding: 0.6rem 0.8rem;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.82);
+  background: var(--surface);
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
   backdrop-filter: blur(8px);
@@ -52,20 +52,113 @@
   outline-offset: 2px;
 }
 
+.nav-menu-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.nav-menu-title {
+  font-weight: 600;
+}
+
+.nav-menu {
+  position: relative;
+}
+
+.nav-submenu {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.6rem;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  z-index: 40;
+}
+
+.nav-submenu-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.nav-submenu-header strong {
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.nav-submenu-switch {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.nav-submenu-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.household-switch-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.nav-submenu-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 0.2rem 0;
+}
+
+.nav-submenu button {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+  background: var(--surface-2);
+}
+
+.nav-submenu button.active {
+  background: var(--accent-2);
+  border-color: var(--accent-2);
+  color: #fff;
+}
+
 .pill-btn {
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--surface);
   color: var(--ink);
   padding: 0.45rem 0.9rem;
   border-radius: 999px;
   font-weight: 600;
   cursor: pointer;
   transition: 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  line-height: 1;
+  min-height: 36px;
 }
 
 .pill-btn:hover {
   border-color: var(--accent-2);
   box-shadow: 0 6px 16px rgba(47, 143, 131, 0.18);
+}
+
+.pill-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 .pill-btn.accent {
@@ -74,36 +167,61 @@
   color: #fff;
 }
 
-.household-picker {
-  display: flex;
+.pill-btn.active {
+  background: var(--accent-2);
+  border-color: var(--accent-2);
+  color: #fff;
+}
+
+.pill-btn.danger {
+  border-color: var(--danger-border);
+  background: var(--danger-bg);
+  color: var(--danger-ink);
+}
+
+.pill-btn.file-pill {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
   align-items: center;
+  gap: 0.4rem;
+  min-height: 36px;
+}
+
+.pill-btn.file-pill input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.toolbar-row {
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
-  padding: 0.3rem 0.7rem;
-  border-radius: 999px;
-  background: var(--surface-2);
+  align-items: center;
+}
+
+.filters-toggle-row {
+  display: none;
+}
+
+.filters-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.toolbar-row input,
+.toolbar-row select {
+  padding: 0.45rem 0.6rem;
+  border-radius: 10px;
   border: 1px solid var(--border);
+  background: var(--surface);
 }
 
-.household-label {
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted);
-  font-weight: 600;
-}
-
-.household-name {
-  font-weight: 600;
-  color: var(--ink);
-}
-
-.household-switch {
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  padding: 0.35rem 0.7rem;
-  background: #fff;
-  font-weight: 600;
-  color: var(--ink);
+.inventory-grid.compact h3 {
+  font-size: 1rem;
 }
 
 .household-banner {
@@ -122,6 +240,70 @@
   margin: 0 auto;
   display: flex;
   justify-content: center;
+}
+
+.app-container.compact {
+  padding: 1.6rem clamp(0.8rem, 3vw, 2.5rem) 2rem;
+  gap: 1rem;
+}
+
+.mobile-nav {
+  display: none;
+}
+
+.mobile-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 60;
+}
+
+.mobile-sheet {
+  width: min(520px, 100%);
+  background: var(--surface);
+  border-top-left-radius: 24px;
+  border-top-right-radius: 24px;
+  padding: 1rem;
+  box-shadow: var(--shadow);
+  max-height: 80vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.mobile-sheet-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.mobile-sheet-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.mobile-sheet-title {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.mobile-sheet-link {
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--ink);
+  padding: 0.6rem 0.8rem;
+  border-radius: 14px;
+  text-align: left;
+  font-weight: 600;
 }
 
 .auth-container {
@@ -144,8 +326,8 @@
 .auth-container input {
   padding: 0.65rem 0.8rem;
   border-radius: 12px;
-  border: 1px solid #d6d6d6;
-  background: #fff;
+  border: 1px solid var(--border);
+  background: var(--surface);
 }
 
 .auth-container button {
@@ -184,16 +366,55 @@
 
 @media (max-width: 720px) {
   .app-container {
-    padding: 2rem 1rem 2.5rem;
+    padding: 1.6rem 1rem 5.5rem;
   }
 
   .navbar {
-    border-radius: 20px;
-    position: static;
+    display: none;
   }
 
-  .household-picker {
+  .nav-submenu {
+    position: static;
     width: 100%;
-    justify-content: space-between;
+    margin-top: 0.4rem;
+  }
+
+  .filters-toggle-row {
+    display: flex;
+  }
+
+  .filters-panel {
+    display: none;
+  }
+
+  .filters-panel.open {
+    display: flex;
+  }
+
+  .mobile-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.25rem;
+    padding: 0.6rem 0.75rem 0.9rem;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.12);
+    z-index: 50;
+  }
+
+  .mobile-nav button {
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-weight: 600;
+    padding: 0.4rem 0.2rem;
+  }
+
+  .mobile-nav button.active {
+    color: var(--accent-2);
   }
 }

@@ -9,22 +9,22 @@
   align-items: center;
   padding: 0.35rem 0.5rem;
   border-radius: 12px;
-  border: 1px solid #d7dce2;
-  background: #fff;
+  border: 1px solid var(--border);
+  background: var(--surface);
   min-height: 44px;
 }
 
 .tag-picker-empty {
-  color: #9aa3af;
+  color: var(--muted);
   font-size: 0.85rem;
 }
 
 .tag-chip {
   padding: 0.25rem 0.6rem;
   border-radius: 999px;
-  background: #eef2f7;
+  background: var(--surface-2);
   font-size: 0.85rem;
-  color: #1f2937;
+  color: var(--ink);
   font-weight: 600;
 }
 
@@ -33,16 +33,16 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  border: 1px solid #cfd6dd;
-  background: #f1f5f9;
-  color: #4b5563;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--muted);
   font-size: 1.1rem;
   font-weight: 700;
   cursor: pointer;
 }
 
 .tag-add-btn:hover {
-  background: #e2e8f0;
+  background: var(--surface);
 }
 
 .tag-modal-backdrop {
@@ -58,7 +58,7 @@
 
 .tag-modal {
   width: min(420px, 95vw);
-  background: #fff;
+  background: var(--surface);
   border-radius: 16px;
   padding: 1rem;
   box-shadow: 0 20px 40px rgba(15, 23, 42, 0.25);
@@ -80,7 +80,7 @@
 .tag-close-btn {
   border: none;
   background: transparent;
-  color: #6b7280;
+  color: var(--muted);
   cursor: pointer;
   font-weight: 600;
 }
@@ -91,32 +91,38 @@
   gap: 0.8rem;
 }
 
-.tag-create-row {
+.tag-manage-hint {
   display: flex;
-  gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 0.6rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
 }
 
-.tag-create-row input {
-  flex: 1;
-  padding: 0.5rem 0.6rem;
-  border-radius: 10px;
-  border: 1px solid #d7dce2;
-}
-
-.tag-create-row button,
-.tag-modal-actions button,
-.tag-close-btn {
-  font-family: inherit;
-}
-
-.tag-create-row button {
-  border: 1px solid #cbd5e1;
-  background: #f8fafc;
-  color: #1f2937;
-  padding: 0.45rem 0.9rem;
-  border-radius: 10px;
+.tag-manage-btn {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
   cursor: pointer;
   font-weight: 600;
+  white-space: nowrap;
+}
+
+.tag-manage-btn:hover {
+  border-color: var(--accent-2);
+}
+
+.tag-modal-actions button,
+.tag-close-btn,
+.tag-manage-btn {
+  font-family: inherit;
 }
 
 .tag-options {
@@ -140,9 +146,9 @@
 }
 
 .tag-modal-actions button {
-  border: 1px solid #cbd5e1;
-  background: #e2e8f0;
-  color: #1f2937;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--ink);
   padding: 0.45rem 1rem;
   border-radius: 999px;
   font-weight: 600;

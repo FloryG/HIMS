@@ -9,6 +9,7 @@ import {
   upsertTagRule,
 } from "./householdService";
 import ActivityLog from "./ActivityLog";
+import { useI18n } from "./i18n";
 import "./HouseholdPanel.css";
 
 export default function HouseholdPanel({
@@ -18,16 +19,18 @@ export default function HouseholdPanel({
   sections,
   tagRules,
   joinCodePrefill,
+  activeTab,
+  onTabChange,
   onRefreshSections,
   onRefreshTagRules,
   onReloadHousehold,
 }) {
-  const [activeTab, setActiveTab] = useState("info");
+  const { t } = useI18n();
+  const [localTab, setLocalTab] = useState(activeTab || "info");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const [newHouseholdName, setNewHouseholdName] = useState("");
-  const [selectedHouseholdId, setSelectedHouseholdId] = useState(household?.id || "");
   const [newSectionName, setNewSectionName] = useState("");
   const [tagRuleTag, setTagRuleTag] = useState("");
   const [tagRuleAlertDays, setTagRuleAlertDays] = useState("");
@@ -41,8 +44,10 @@ export default function HouseholdPanel({
     : "";
 
   useEffect(() => {
-    setSelectedHouseholdId(household?.id || "");
-  }, [household]);
+    if (activeTab) {
+      setLocalTab(activeTab);
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     if (joinCodePrefill && !joinCode) {
@@ -64,10 +69,10 @@ export default function HouseholdPanel({
       await joinHouseholdByCode(user.id, joinCode.trim());
       setJoinCode("");
       await onReloadHousehold();
-      setMessage("Joined household.");
+      setMessage(t("household.joined"));
     } catch (err) {
       console.error(err);
-      setError(`Failed to join household. ${err?.message || ""}`.trim());
+      setError(`${t("household.join_failed")} ${err?.message || ""}`.trim());
     }
   };
 
@@ -76,10 +81,10 @@ export default function HouseholdPanel({
       await createHouseholdForUser(user, newHouseholdName);
       setNewHouseholdName("");
       await onReloadHousehold();
-      setMessage("Household created.");
+      setMessage(t("household.created"));
     } catch (err) {
       console.error(err);
-      setError(`Failed to create household. ${err?.message || ""}`.trim());
+      setError(`${t("household.create_failed")} ${err?.message || ""}`.trim());
     }
   };
 
@@ -87,10 +92,10 @@ export default function HouseholdPanel({
     if (!household?.join_code) return;
     try {
       await navigator.clipboard?.writeText(household.join_code);
-      setMessage("Join code copied.");
+      setMessage(t("common.copy"));
     } catch (err) {
       console.error(err);
-      setError("Failed to copy join code.");
+      setError(t("household.copy_failed"));
     }
   };
 
@@ -98,28 +103,28 @@ export default function HouseholdPanel({
     if (!inviteLink) return;
     try {
       await navigator.clipboard?.writeText(inviteLink);
-      setMessage("Invite link copied.");
+      setMessage(t("common.copy"));
     } catch (err) {
       console.error(err);
-      setError("Failed to copy invite link.");
+      setError(t("household.copy_failed"));
     }
   };
 
-  const handleSwitchHousehold = async () => {
+  const handleSwitchHousehold = async (nextId) => {
     try {
-      if (!selectedHouseholdId || selectedHouseholdId === household?.id) return;
-      await setActiveHousehold(user.id, selectedHouseholdId);
+      if (!nextId || nextId === household?.id) return;
+      await setActiveHousehold(user.id, nextId);
       await onReloadHousehold();
-      setMessage("Switched household.");
+      setMessage(t("household.switch"));
     } catch (err) {
       console.error(err);
-      setError("Failed to switch household.");
+      setError(t("household.switch_failed"));
     }
   };
 
   const handleAddSection = async () => {
     if (!household?.id) {
-      setError("Create or join a household before adding sections.");
+      setError(t("sections.manage_requires_household"));
       return;
     }
     if (!newSectionName.trim()) return;
@@ -129,7 +134,7 @@ export default function HouseholdPanel({
       await onRefreshSections();
     } catch (err) {
       console.error(err);
-      setError("Failed to add section.");
+      setError(t("sections.add_failed"));
     }
   };
 
@@ -140,13 +145,13 @@ export default function HouseholdPanel({
       await onRefreshSections();
     } catch (err) {
       console.error(err);
-      setError("Failed to remove section.");
+      setError(t("sections.remove_failed"));
     }
   };
 
   const handleSaveTagRule = async () => {
     if (!household?.id) {
-      setError("Create or join a household before adding tag rules.");
+      setError(t("tags.manage_requires_household"));
       return;
     }
     const tag = normalizeTag(tagRuleTag);
@@ -160,10 +165,10 @@ export default function HouseholdPanel({
       );
       setTagRuleTag("");
       await onRefreshTagRules();
-      setMessage("Tag rule saved.");
+      setMessage(t("tags.rule_saved"));
     } catch (err) {
       console.error(err);
-      setError("Failed to save tag rule.");
+      setError(t("tags.rule_failed"));
     }
   };
 
@@ -172,19 +177,28 @@ export default function HouseholdPanel({
     try {
       await deleteTagRule(household.id, tag);
       await onRefreshTagRules();
-      setMessage("Tag rule removed.");
+      setMessage(t("tags.rule_removed"));
     } catch (err) {
       console.error(err);
-      setError("Failed to remove tag rule.");
+      setError(t("tags.rule_remove_failed"));
     }
   };
 
   const tabs = [
-    { id: "info", label: "Household info" },
-    { id: "tags", label: "Tags" },
-    { id: "sections", label: "Custom sections" },
-    { id: "activity", label: "Activity" },
+    { id: "info", label: t("household.info") },
+    { id: "tags", label: t("household.tags") },
+    { id: "sections", label: t("household.sections") },
+    { id: "activity", label: t("household.activity") },
   ];
+
+  const currentTab = activeTab || localTab;
+  const handleTabChange = (next) => {
+    if (onTabChange) {
+      onTabChange(next);
+    } else {
+      setLocalTab(next);
+    }
+  };
 
   return (
     <div className="household-panel">
@@ -192,49 +206,48 @@ export default function HouseholdPanel({
         {tabs.map((tab) => (
           <button
             key={tab.id}
-            className={`household-tab ${activeTab === tab.id ? "active" : ""}`}
-            onClick={() => setActiveTab(tab.id)}
+            className={`household-tab ${currentTab === tab.id ? "active" : ""}`}
+            onClick={() => handleTabChange(tab.id)}
           >
             {tab.label}
           </button>
         ))}
       </div>
 
-      {activeTab === "info" && (
+      {currentTab === "info" && (
         <div className="household-card">
-          <h3>Household info</h3>
+          <h3>{t("household.info")}</h3>
           <p>
-            Active: <strong>{household?.name || "-"}</strong>
+            {t("household.active")}: <strong>{household?.name || "-"}</strong>
           </p>
           <p>
-            Join code: <strong>{joinCodeDisplay}</strong>
+            {t("household.join_code")}: <strong>{joinCodeDisplay}</strong>
           </p>
           {household?.join_code && (
             <div className="household-row">
               <button className="pill-btn" onClick={handleCopyJoinCode}>
-                Copy join code
+                {t("household.copy_code")}
               </button>
               <button className="pill-btn" onClick={handleCopyInviteLink}>
-                Copy invite link
+                {t("household.copy_invite")}
               </button>
             </div>
           )}
 
           {households?.length > 1 && (
-            <div className="household-row">
-              <select
-                value={selectedHouseholdId}
-                onChange={(e) => setSelectedHouseholdId(e.target.value)}
-              >
+            <div className="household-switch-panel">
+              <span className="household-muted">{t("household.switch")}</span>
+              <div className="household-switch-list">
                 {households.map((membership) => (
-                  <option key={membership.households.id} value={membership.households.id}>
+                  <button
+                    key={membership.households.id}
+                    className={`pill-btn ${membership.households.id === household?.id ? "active" : ""}`}
+                    onClick={() => handleSwitchHousehold(membership.households.id)}
+                  >
                     {membership.households.name}
-                  </option>
+                  </button>
                 ))}
-              </select>
-              <button className="pill-btn" onClick={handleSwitchHousehold}>
-                Switch
-              </button>
+              </div>
             </div>
           )}
 
@@ -244,45 +257,43 @@ export default function HouseholdPanel({
               onChange={(e) =>
                 setJoinCode(e.target.value.replace(/[^a-z0-9]/gi, "").toUpperCase())
               }
-              placeholder="Enter join code"
+              placeholder={t("household.join_placeholder")}
             />
             <button className="pill-btn accent" onClick={handleJoinHousehold}>
-              Join
+              {t("household.join")}
             </button>
           </div>
 
           {joinCodePrefill && (
-            <p className="household-muted">Invite detected. The join code is prefilled.</p>
+            <p className="household-muted">{t("household.invite_detected")}</p>
           )}
 
           <div className="household-row">
             <input
               value={newHouseholdName}
               onChange={(e) => setNewHouseholdName(e.target.value)}
-              placeholder="New household name"
+              placeholder={t("household.new_placeholder")}
             />
             <button className="pill-btn accent" onClick={handleCreateHousehold}>
-              Create
+              {t("household.create")}
             </button>
           </div>
         </div>
       )}
 
-      {activeTab === "tags" && (
+      {currentTab === "tags" && (
         <div className="household-card">
-          <h3>Tags</h3>
-          <p className="household-muted">
-            Leave alert/stock blank to create organize-only tags.
-          </p>
+          <h3>{t("tags.manage_title")}</h3>
+          <p className="household-muted">{t("tags.manage_desc")}</p>
           {!household?.id ? (
-            <p>Create or join a household to manage tags.</p>
+            <p>{t("tags.manage_requires_household")}</p>
           ) : (
             <>
               <div className="household-row">
                 <input
                   value={tagRuleTag}
                   onChange={(e) => setTagRuleTag(e.target.value)}
-                  placeholder="Tag name"
+                  placeholder={t("tags.name")}
                 />
                 <input
                   type="number"
@@ -290,7 +301,7 @@ export default function HouseholdPanel({
                   max={60}
                   value={tagRuleAlertDays}
                   onChange={(e) => setTagRuleAlertDays(e.target.value)}
-                  placeholder="Alert days (optional)"
+                  placeholder={t("tags.alert_days_optional")}
                 />
                 <input
                   type="number"
@@ -298,10 +309,10 @@ export default function HouseholdPanel({
                   max={20}
                   value={tagRuleLowStock}
                   onChange={(e) => setTagRuleLowStock(e.target.value)}
-                  placeholder="Low stock (optional)"
+                  placeholder={t("tags.low_stock_optional")}
                 />
                 <button className="pill-btn" onClick={handleSaveTagRule}>
-                  Add / Update
+                  {t("tags.save")}
                 </button>
               </div>
 
@@ -310,49 +321,49 @@ export default function HouseholdPanel({
                   {tagRules.map((rule) => (
                     <div key={rule.id} className="tag-rule-item">
                       <strong>{rule.tag}</strong>
-                      <span>Alert: {rule.alert_days ?? "-"}</span>
-                      <span>Low stock: {rule.low_stock_threshold ?? "-"}</span>
+                      <span>{t("profile.alert_days")}: {rule.alert_days ?? "-"}</span>
+                      <span>{t("profile.low_stock")}: {rule.low_stock_threshold ?? "-"}</span>
                       <button className="pill-btn" onClick={() => handleDeleteTagRule(rule.tag)}>
-                        Remove
+                        {t("common.remove")}
                       </button>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p>No tag rules yet.</p>
+                <p>{t("tags.none_rules")}</p>
               )}
             </>
           )}
         </div>
       )}
 
-      {activeTab === "sections" && (
+      {currentTab === "sections" && (
         <div className="household-card">
-          <h3>Custom sections</h3>
+          <h3>{t("sections.title")}</h3>
           {!household?.id ? (
-            <p>Create or join a household to manage sections.</p>
+            <p>{t("sections.manage_requires_household")}</p>
           ) : (
             <>
               <div className="household-row">
                 <input
                   value={newSectionName}
                   onChange={(e) => setNewSectionName(e.target.value)}
-                  placeholder="Add a section"
+                  placeholder={t("sections.add_placeholder")}
                 />
                 <button className="pill-btn" onClick={handleAddSection}>
-                  Add
+                  {t("common.add")}
                 </button>
               </div>
 
               {sections?.length === 0 ? (
-                <p>No sections yet.</p>
+                <p>{t("sections.none")}</p>
               ) : (
                 <div className="tag-rule-list">
                   {sections.map((section) => (
                     <div key={section.id} className="tag-rule-item">
                       <span>{section.name}</span>
                       <button className="pill-btn" onClick={() => handleDeleteSection(section.id)}>
-                        Remove
+                        {t("common.remove")}
                       </button>
                     </div>
                   ))}
@@ -363,11 +374,11 @@ export default function HouseholdPanel({
         </div>
       )}
 
-      {activeTab === "activity" && (
+      {currentTab === "activity" && (
         <div className="household-card">
-          <h3>Activity</h3>
+          <h3>{t("activity.title")}</h3>
           {!household?.id ? (
-            <p>Create or join a household to view activity.</p>
+            <p>{t("tags.manage_requires_household")}</p>
           ) : (
             <ActivityLog householdId={household.id} />
           )}

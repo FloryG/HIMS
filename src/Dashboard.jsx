@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabaseClient";
 import { loadCachedItems, saveCachedItems } from "./offlineQueue";
+import { useI18n } from "./i18n";
+import { pickTranslation } from "./localize";
 
 const startOfToday = () => {
   const d = new Date();
@@ -43,6 +45,7 @@ const DEFAULT_WIDGETS = [
 ];
 
 export default function Dashboard({ householdId, settings, tagRules = [] }) {
+  const { t, lang } = useI18n();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -75,7 +78,7 @@ export default function Dashboard({ householdId, settings, tagRules = [] }) {
 
       if (error) {
         console.error(error);
-        setError("Failed to load dashboard.");
+        setError(t("dashboard.failed"));
       } else {
         setItems(data || []);
         saveCachedItems(householdId, data || []);
@@ -85,7 +88,7 @@ export default function Dashboard({ householdId, settings, tagRules = [] }) {
     };
 
     fetchItems();
-  }, [householdId]);
+  }, [householdId, t]);
 
   useEffect(() => {
     localStorage.setItem("dashboard_widgets_v1", JSON.stringify(visibleWidgets));
@@ -150,27 +153,27 @@ export default function Dashboard({ householdId, settings, tagRules = [] }) {
   const widgetDefs = [
     {
       id: "total_items",
-      label: "Total items",
+      label: t("dashboard.total_items"),
       render: () => <strong style={{ fontSize: "2rem" }}>{totalItems}</strong>,
     },
     {
       id: "expiring_soon",
-      label: "Expiring soon",
+      label: t("dashboard.expiring_soon"),
       render: () => <strong style={{ fontSize: "2rem" }}>{expiringSoonCount}</strong>,
     },
     {
       id: "expired",
-      label: "Expired",
+      label: t("dashboard.expired"),
       render: () => <strong style={{ fontSize: "2rem" }}>{expiredCount}</strong>,
     },
     {
       id: "low_stock",
-      label: "Low stock",
+      label: t("dashboard.low_stock"),
       render: () => <strong style={{ fontSize: "2rem" }}>{lowStockCount}</strong>,
     },
     {
       id: "top_tags",
-      label: "Top tags",
+      label: t("dashboard.top_tags"),
       render: () =>
         tagCounts.length ? (
           <ul style={{ margin: 0, paddingLeft: "1.2rem" }}>
@@ -181,21 +184,23 @@ export default function Dashboard({ householdId, settings, tagRules = [] }) {
             ))}
           </ul>
         ) : (
-          <span style={{ color: "#6b7280" }}>No tags yet</span>
+          <span style={{ color: "var(--muted)" }}>{t("dashboard.no_tags")}</span>
         ),
     },
     {
       id: "recent_items",
-      label: "Recently added",
+      label: t("dashboard.recent_items"),
       render: () =>
         recentItems.length ? (
           <ul style={{ margin: 0, paddingLeft: "1.2rem" }}>
             {recentItems.map((item) => (
-              <li key={item.id}>{item.name || "Unnamed item"}</li>
+              <li key={item.id}>
+                {pickTranslation(item.name_translations, item.name, lang) || t("shopping.unnamed")}
+              </li>
             ))}
           </ul>
         ) : (
-          <span style={{ color: "#6b7280" }}>No items yet</span>
+          <span style={{ color: "var(--muted)" }}>{t("dashboard.no_items")}</span>
         ),
     },
   ];
@@ -206,20 +211,20 @@ export default function Dashboard({ householdId, settings, tagRules = [] }) {
     );
   };
 
-  if (loading) return <p>Loading dashboard...</p>;
+  if (loading) return <p>{t("dashboard.loading")}</p>;
   if (error) return <p style={{ color: "red" }}>{error}</p>;
 
   return (
     <div style={{ width: "100%" }}>
       <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-        <h2>Dashboard</h2>
-        <p style={{ margin: 0, color: "#6b7280" }}>
-          Widgets use tag-based thresholds when available.
+        <h2>{t("dashboard.title")}</h2>
+        <p style={{ margin: 0, color: "var(--muted)" }}>
+          {t("dashboard.subtitle")}
         </p>
       </div>
 
       <div style={{ marginTop: "1rem" }}>
-        <h3 style={{ marginBottom: "0.4rem" }}>Customize widgets</h3>
+        <h3 style={{ marginBottom: "0.4rem" }}>{t("dashboard.customize")}</h3>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "0.6rem" }}>
           {widgetDefs.map((widget) => (
             <label key={widget.id} style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
@@ -250,15 +255,15 @@ export default function Dashboard({ householdId, settings, tagRules = [] }) {
               style={{
                 padding: "1rem",
                 borderRadius: "16px",
-                background: "#fff",
-                border: "1px solid #e2e8f0",
-                boxShadow: "0 10px 20px rgba(15, 23, 42, 0.08)",
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
+                boxShadow: "var(--shadow)",
                 display: "flex",
                 flexDirection: "column",
                 gap: "0.6rem",
               }}
             >
-              <span style={{ fontWeight: 600, color: "#111827" }}>{widget.label}</span>
+              <span style={{ fontWeight: 600, color: "var(--ink)" }}>{widget.label}</span>
               {widget.render()}
             </div>
           ))}

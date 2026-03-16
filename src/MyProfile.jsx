@@ -1,8 +1,42 @@
-// src/MyProfile.jsx
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
+import { useI18n } from "./i18n";
+import "./MyProfile.css";
 
-export default function MyProfile({ user, settings }) {
+const DEFAULT_PREFS = {
+  defaultScanMode: "manual",
+  continuousScan: false,
+  compactMode: false,
+  showImages: true,
+  theme: "light",
+  language: "en",
+};
+
+const normalizePrefs = (prefs = {}) => ({
+  defaultScanMode: prefs.defaultScanMode || DEFAULT_PREFS.defaultScanMode,
+  continuousScan: Boolean(prefs.continuousScan),
+  compactMode: Boolean(prefs.compactMode),
+  showImages: prefs.showImages !== false,
+  theme: prefs.theme || DEFAULT_PREFS.theme,
+  language: prefs.language || DEFAULT_PREFS.language,
+});
+
+const LANGUAGE_OPTIONS = [
+  { value: "en", label: "English" },
+  { value: "es", label: "Español" },
+  { value: "de", label: "Deutsch" },
+  { value: "hu", label: "Magyar" },
+];
+
+export default function MyProfile({
+  user,
+  settings,
+  household,
+  households = [],
+  uiPrefs,
+  onUpdatePrefs,
+}) {
+  const { t } = useI18n();
   const [profile, setProfile] = useState(null);
   const [nameDraft, setNameDraft] = useState("");
   const [loading, setLoading] = useState(true);
@@ -11,15 +45,24 @@ export default function MyProfile({ user, settings }) {
   const [error, setError] = useState("");
   const [alertDays, setAlertDays] = useState(settings?.alert_days ?? 7);
   const [lowStockThreshold, setLowStockThreshold] = useState(settings?.low_stock_threshold ?? 1);
+  const [prefs, setPrefs] = useState(normalizePrefs(uiPrefs));
   const maxNameLength = 40;
   const normalizedName = (profile?.name || "").trim();
   const trimmedDraft = nameDraft.trim();
   const isDirty = trimmedDraft !== normalizedName;
+  const settingsDirty =
+    Number(alertDays) !== (settings?.alert_days ?? 7) ||
+    Number(lowStockThreshold) !== (settings?.low_stock_threshold ?? 1);
+  const prefDirty = JSON.stringify(prefs) !== JSON.stringify(normalizePrefs(uiPrefs));
 
   useEffect(() => {
     setAlertDays(settings?.alert_days ?? 7);
     setLowStockThreshold(settings?.low_stock_threshold ?? 1);
   }, [settings]);
+
+  useEffect(() => {
+    setPrefs(normalizePrefs(uiPrefs));
+  }, [uiPrefs]);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -28,13 +71,13 @@ export default function MyProfile({ user, settings }) {
       setMessage("");
 
       try {
-        const { data, error } = await supabase
+        const { data, error: fetchError } = await supabase
           .from("profiles")
           .select("id, name")
           .eq("id", user.id)
           .maybeSingle();
 
-        if (error) throw error;
+        if (fetchError) throw fetchError;
 
         if (!data) {
           const { error: upsertError } = await supabase
@@ -51,7 +94,7 @@ export default function MyProfile({ user, settings }) {
         }
       } catch (err) {
         console.error("Failed to load profile:", err);
-        setError("Failed to load profile. You may need to register first.");
+        setError(t("profile.profile_failed"));
       } finally {
         setLoading(false);
       }
@@ -62,7 +105,7 @@ export default function MyProfile({ user, settings }) {
     } else {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, t]);
 
   const handleSaveProfile = async () => {
     if (!user?.id) return;
@@ -70,16 +113,16 @@ export default function MyProfile({ user, settings }) {
     setError("");
     setMessage("");
 
-    const { error } = await supabase
+    const { error: updateError } = await supabase
       .from("profiles")
       .upsert([{ id: user.id, name: trimmedDraft }]);
 
-    if (error) {
-      console.error("Failed to update profile:", error);
-      setError("Failed to update profile.");
+    if (updateError) {
+      console.error("Failed to update profile:", updateError);
+      setError(t("profile.profile_failed"));
     } else {
       setProfile((prev) => (prev ? { ...prev, name: trimmedDraft } : prev));
-      setMessage("Profile updated.");
+      setMessage(t("profile.profile_updated"));
     }
 
     setSaving(false);
@@ -89,177 +132,241 @@ export default function MyProfile({ user, settings }) {
     if (!user?.id) return;
     setMessage("");
     setError("");
-    const { error } = await supabase.from("user_settings").upsert([
+    const { error: settingsError } = await supabase.from("user_settings").upsert([
       {
         user_id: user.id,
         alert_days: Number(alertDays),
         low_stock_threshold: Number(lowStockThreshold),
       },
     ]);
-    if (error) {
-      setError("Failed to update settings.");
+    if (settingsError) {
+      setError(t("profile.settings_failed"));
     } else {
-      setMessage("Settings saved.");
+      setMessage(t("profile.settings_saved"));
     }
   };
 
-  if (loading) return <p style={{ textAlign: "center", marginTop: "2rem" }}>Loading profile...</p>;
-  if (!profile) return <p style={{ textAlign: "center", marginTop: "2rem" }}>No profile found.</p>;
+  const handleSavePrefs = () => {
+    onUpdatePrefs?.(prefs);
+    setMessage(t("profile.prefs_saved"));
+  };
+
+  const handleResetPrefs = () => {
+    setPrefs(DEFAULT_PREFS);
+    onUpdatePrefs?.(DEFAULT_PREFS);
+    setMessage(t("profile.prefs_reset"));
+  };
+
+  const handleCopyId = async () => {
+    try {
+      await navigator.clipboard?.writeText(user.id);
+      setMessage(t("profile.copy_success"));
+    } catch (err) {
+      console.error(err);
+      setError(t("profile.copy_failed"));
+    }
+  };
+
+  const membershipNames = households
+    .map((membership) => membership.households?.name)
+    .filter(Boolean);
+
+  if (loading) return <p className="profile-loading">{t("common.loading")}</p>;
+  if (!profile) return <p className="profile-loading">{t("profile.profile_failed")}</p>;
 
   return (
-    <div
-      style={{
-        maxWidth: "640px",
-        margin: "2rem auto",
-        padding: "1rem",
-        fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-        display: "flex",
-        flexDirection: "column",
-        gap: "1rem",
-      }}
-    >
-      <h2 style={{ textAlign: "center", color: "#555" }}>Profile</h2>
-
-      <div
-        style={{
-          backgroundColor: "#fef9f9",
-          padding: "1rem",
-          borderRadius: "15px",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-          display: "flex",
-          flexDirection: "column",
-          gap: "0.9rem",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-          <div
-            style={{
-              width: "60px",
-              height: "60px",
-              borderRadius: "50%",
-              backgroundColor: "#ffd1dc",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "1.5rem",
-              color: "#fff",
-              flexShrink: 0,
-            }}
-          >
-            {profile.name ? profile.name[0].toUpperCase() : "?"}
-          </div>
-          <div style={{ flex: 1 }}>
-            <p style={{ margin: 0, fontWeight: "600", fontSize: "1.1rem", color: "#333" }}>
-              {profile.name || "No Name"}
-            </p>
-            <p style={{ margin: 0, fontSize: "0.9rem", color: "#666" }}>{user.email}</p>
-          </div>
+    <div className="profile-page">
+      <div className="profile-header">
+        <div>
+          <h2>{t("profile.title")}</h2>
+          <p className="profile-muted">{t("profile.subtitle")}</p>
         </div>
+        <button className="pill-btn" onClick={() => supabase.auth.signOut()}>
+          {t("profile.sign_out")}
+        </button>
+      </div>
 
-        <div
-          style={{
-            backgroundColor: "#fff0f5",
-            padding: "0.9rem",
-            borderRadius: "12px",
-            display: "flex",
-            flexDirection: "column",
-            gap: "0.6rem",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-          }}
-        >
-          <p style={{ margin: 0, fontWeight: "500", color: "#555" }}>Profile Name</p>
-          <input
-            value={nameDraft}
-            onChange={(e) => setNameDraft(e.target.value)}
-            placeholder="Enter your name"
-            maxLength={maxNameLength}
-            style={{
-              padding: "0.6rem 0.7rem",
-              borderRadius: "10px",
-              border: "1px solid #e1cfd4",
-              fontSize: "0.95rem",
-            }}
-          />
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", color: "#8a7a7f" }}>
-            <span>Visible on shared inventories.</span>
-            <span>{nameDraft.length}/{maxNameLength}</span>
+      <div className="profile-grid">
+        <div className="profile-card">
+          <h3>{t("profile.account")}</h3>
+          <div className="profile-account">
+            <div className="profile-avatar">
+              {profile.name ? profile.name[0].toUpperCase() : "?"}
+            </div>
+            <div className="profile-account-info">
+              <strong>{profile.name || t("profile.display_name")}</strong>
+              <span>{user.email}</span>
+              <div className="profile-id-row">
+                <span className="profile-muted">{t("profile.user_id")}: {user.id.slice(0, 8)}...</span>
+                <button className="pill-btn" onClick={handleCopyId}>
+                  {t("profile.copy_id")}
+                </button>
+              </div>
+            </div>
           </div>
-          <button
-            onClick={handleSaveProfile}
-            disabled={saving || !isDirty}
-            style={{
-              padding: "0.6rem 0.9rem",
-              borderRadius: "10px",
-              border: "none",
-              backgroundColor: saving || !isDirty ? "#ccc" : "#f28fb1",
-              color: "#fff",
-              fontWeight: "600",
-              cursor: saving || !isDirty ? "not-allowed" : "pointer",
-            }}
-          >
-            {saving ? "Saving..." : "Save Profile"}
-          </button>
-          {isDirty && (
-            <button
-              onClick={() => setNameDraft(profile?.name || "")}
-              style={{
-                padding: "0.55rem 0.9rem",
-                borderRadius: "10px",
-                border: "1px solid #f2b4c9",
-                backgroundColor: "#fff7fa",
-                color: "#a25573",
-                fontWeight: "600",
-                cursor: "pointer",
-              }}
-            >
-              Reset
-            </button>
+
+          <div className="profile-meta">
+            <div>
+              <span className="profile-muted">{t("profile.active_household")}</span>
+              <strong>{household?.name || "-"}</strong>
+            </div>
+            <div>
+              <span className="profile-muted">{t("profile.memberships")}</span>
+              <strong>{membershipNames.length || 0}</strong>
+            </div>
+          </div>
+          {membershipNames.length > 0 && (
+            <div className="profile-list">
+              {membershipNames.map((name) => (
+                <span key={name} className="profile-chip">{name}</span>
+              ))}
+            </div>
           )}
         </div>
+
+        <div className="profile-card">
+          <h3>{t("profile.details")}</h3>
+          <div className="profile-field">
+            <label htmlFor="profile-name">{t("profile.display_name")}</label>
+            <input
+              id="profile-name"
+              value={nameDraft}
+              onChange={(e) => setNameDraft(e.target.value)}
+              placeholder={t("profile.display_name")}
+              maxLength={maxNameLength}
+            />
+            <div className="profile-helper">
+              <span>{t("profile.visible_hint")}</span>
+              <span>{nameDraft.length}/{maxNameLength}</span>
+            </div>
+          </div>
+          <div className="profile-actions">
+            <button className="pill-btn accent" onClick={handleSaveProfile} disabled={saving || !isDirty}>
+              {saving ? t("common.loading") : t("profile.save_profile")}
+            </button>
+            {isDirty && (
+              <button className="pill-btn" onClick={() => setNameDraft(profile?.name || "")}>
+                {t("profile.reset")}
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="profile-card">
+          <h3>{t("profile.alerts_title")}</h3>
+          <p className="profile-muted">
+            {t("profile.alerts_hint")}
+          </p>
+          <div className="profile-field">
+            <label htmlFor="alert-days">{t("profile.alert_days")}</label>
+            <input
+              id="alert-days"
+              type="number"
+              min={1}
+              max={60}
+              value={alertDays}
+              onChange={(e) => setAlertDays(e.target.value)}
+            />
+          </div>
+          <div className="profile-field">
+            <label htmlFor="low-stock">{t("profile.low_stock")}</label>
+            <input
+              id="low-stock"
+              type="number"
+              min={0}
+              max={20}
+              value={lowStockThreshold}
+              onChange={(e) => setLowStockThreshold(e.target.value)}
+            />
+          </div>
+          <button className="pill-btn accent" onClick={handleSaveSettings} disabled={!settingsDirty}>
+            {t("profile.save_settings")}
+          </button>
+        </div>
+
+        <div className="profile-card">
+          <h3>{t("profile.preferences")}</h3>
+          <div className="profile-field">
+            <label htmlFor="default-scan">{t("profile.default_scan")}</label>
+            <select
+              id="default-scan"
+              value={prefs.defaultScanMode}
+              onChange={(e) => setPrefs({ ...prefs, defaultScanMode: e.target.value })}
+            >
+              <option value="manual">{t("profile.manual_entry")}</option>
+              <option value="camera">{t("profile.camera_scan")}</option>
+            </select>
+          </div>
+          <div className="profile-field">
+            <label>{t("profile.theme")}</label>
+            <div className="profile-toggle-group">
+              <button
+                type="button"
+                className={`pill-btn ${prefs.theme === "light" ? "active" : ""}`}
+                onClick={() => setPrefs({ ...prefs, theme: "light" })}
+              >
+                {t("profile.theme_light")}
+              </button>
+              <button
+                type="button"
+                className={`pill-btn ${prefs.theme === "dark" ? "active" : ""}`}
+                onClick={() => setPrefs({ ...prefs, theme: "dark" })}
+              >
+                {t("profile.theme_dark")}
+              </button>
+            </div>
+          </div>
+          <div className="profile-field">
+            <label htmlFor="language-select">{t("profile.language")}</label>
+            <select
+              id="language-select"
+              value={prefs.language}
+              onChange={(e) => setPrefs({ ...prefs, language: e.target.value })}
+            >
+              {LANGUAGE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <label className="profile-toggle">
+            <input
+              type="checkbox"
+              checked={prefs.continuousScan}
+              onChange={(e) => setPrefs({ ...prefs, continuousScan: e.target.checked })}
+            />
+            {t("profile.continuous_scan")}
+          </label>
+          <label className="profile-toggle">
+            <input
+              type="checkbox"
+              checked={prefs.compactMode}
+              onChange={(e) => setPrefs({ ...prefs, compactMode: e.target.checked })}
+            />
+            {t("profile.compact_layout")}
+          </label>
+          <label className="profile-toggle">
+            <input
+              type="checkbox"
+              checked={prefs.showImages}
+              onChange={(e) => setPrefs({ ...prefs, showImages: e.target.checked })}
+            />
+            {t("profile.show_images")}
+          </label>
+          <div className="profile-actions">
+            <button className="pill-btn accent" onClick={handleSavePrefs} disabled={!prefDirty}>
+              {t("profile.save_prefs")}
+            </button>
+            <button className="pill-btn" onClick={handleResetPrefs}>
+              {t("profile.reset_prefs")}
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div
-        style={{
-          backgroundColor: "#f0f8ff",
-          padding: "1rem",
-          borderRadius: "15px",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
-          display: "flex",
-          flexDirection: "column",
-          gap: "0.8rem",
-        }}
-      >
-        <h3 style={{ margin: 0 }}>Alerts & Stock Settings</h3>
-        <p style={{ margin: 0, color: "#6b7280" }}>
-          Default values apply when no tag-specific rule exists.
-        </p>
-        <label style={{ display: "flex", flexDirection: "column", gap: "0.3rem" }}>
-          Alert days before expiry
-          <input
-            type="number"
-            min={1}
-            max={60}
-            value={alertDays}
-            onChange={(e) => setAlertDays(e.target.value)}
-            style={{ padding: "0.5rem", borderRadius: "10px", border: "1px solid #cbd5f5" }}
-          />
-        </label>
-        <label style={{ display: "flex", flexDirection: "column", gap: "0.3rem" }}>
-          Low stock threshold
-          <input
-            type="number"
-            min={0}
-            max={20}
-            value={lowStockThreshold}
-            onChange={(e) => setLowStockThreshold(e.target.value)}
-            style={{ padding: "0.5rem", borderRadius: "10px", border: "1px solid #cbd5f5" }}
-          />
-        </label>
-        <button onClick={handleSaveSettings}>Save settings</button>
-      </div>
-
-      {message && <p style={{ margin: 0, color: "#2f8f83" }}>{message}</p>}
-      {error && <p style={{ margin: 0, color: "#c6554f" }}>{error}</p>}
+      {message && <p className="profile-success">{message}</p>}
+      {error && <p className="profile-error">{error}</p>}
     </div>
   );
 }

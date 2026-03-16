@@ -1,6 +1,8 @@
 ﻿import { useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
 import { loadCachedItems, saveCachedItems } from "./offlineQueue";
+import { useI18n } from "./i18n";
+import { pickTranslation } from "./localize";
 
 const normalizeTag = (value) => (value || "").trim().toLowerCase();
 
@@ -13,10 +15,12 @@ const getLowStockForTags = (tags, tagRuleMap, fallbackThreshold) => {
 };
 
 export default function ShoppingList({ householdId, settings, tagRules = [] }) {
+  const { t, lang } = useI18n();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [offline, setOffline] = useState(!navigator.onLine);
+  const currentLang = lang || "en";
 
   useEffect(() => {
     const handleOnline = () => setOffline(false);
@@ -48,7 +52,7 @@ export default function ShoppingList({ householdId, settings, tagRules = [] }) {
 
       if (error) {
         console.error(error);
-        setError("Failed to load shopping list.");
+        setError(t("shopping.failed"));
       } else {
         setItems(data || []);
         saveCachedItems(householdId, data || []);
@@ -60,7 +64,7 @@ export default function ShoppingList({ householdId, settings, tagRules = [] }) {
     if (householdId) {
       fetchItems();
     }
-  }, [householdId]);
+  }, [householdId, t]);
 
   const threshold = settings?.low_stock_threshold ?? 1;
   const tagRuleMap = new Map(
@@ -76,30 +80,33 @@ export default function ShoppingList({ householdId, settings, tagRules = [] }) {
   });
 
   const handleCopy = () => {
-    const lines = listItems.map((item) => `- ${item.name || "Unnamed item"}`);
+    const lines = listItems.map((item) => {
+      const name = pickTranslation(item.name_translations, item.name, currentLang) || t("shopping.unnamed");
+      return `- ${name}`;
+    });
     navigator.clipboard?.writeText(lines.join("\n"));
   };
 
-  if (loading) return <p>Loading shopping list...</p>;
+  if (loading) return <p>{t("shopping.loading")}</p>;
   if (error) return <p style={{ color: "red" }}>{error}</p>;
 
   return (
     <div style={{ width: "100%" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h2>Shopping List</h2>
-        <button onClick={handleCopy}>Copy List</button>
+        <h2>{t("shopping.title")}</h2>
+        <button className="pill-btn" onClick={handleCopy}>{t("shopping.copy")}</button>
       </div>
       <p style={{ marginTop: "0.25rem" }}>
-        {listItems.length} item(s) below threshold (tag rules applied)
-        {offline ? " (offline)" : ""}
+        {t("shopping.below_threshold", { count: listItems.length })}
+        {offline ? ` (${t("common.offline")})` : ""}
       </p>
       {listItems.length === 0 ? (
-        <p>No items need restocking right now.</p>
+        <p>{t("shopping.none")}</p>
       ) : (
         <ul>
           {listItems.map((item) => (
             <li key={item.id}>
-              {item.name || "Unnamed item"} — {item.quantity ?? "?"} ({item.section || "Unassigned"})
+              {pickTranslation(item.name_translations, item.name, currentLang) || t("shopping.unnamed")} — {item.quantity ?? "?"} ({item.section || t("inventory.unassigned")})
             </li>
           ))}
         </ul>

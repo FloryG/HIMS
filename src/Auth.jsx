@@ -1,7 +1,9 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { supabase } from "./supabaseClient";
+import { useI18n } from "./i18n";
 
 export default function Auth() {
+  const { t } = useI18n();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLogin, setIsLogin] = useState(true);
@@ -18,14 +20,14 @@ export default function Auth() {
           password,
         });
         if (error) throw error;
-        setMessage("✅ Logged in!");
+        setMessage(t("auth.login_success"));
       } else {
         const { error } = await supabase.auth.signUp({
           email,
           password,
         });
         if (error) throw error;
-        setMessage("📩 Check your email to confirm registration.");
+        setMessage(t("auth.signup_success"));
       }
     } catch (e) {
       setError(e.message);
@@ -34,26 +36,28 @@ export default function Auth() {
 
   return (
     <div className="auth-container">
-      <h2>{isLogin ? "Login" : "Sign Up"}</h2>
+      <h2>{isLogin ? t("auth.login") : t("auth.signup")}</h2>
 
       <input
         type="email"
-        placeholder="Email address"
+        placeholder={t("auth.email")}
         value={email}
         onChange={(e) => setEmail(e.target.value)}
       />
 
       <input
         type="password"
-        placeholder="Password"
+        placeholder={t("auth.password")}
         value={password}
         onChange={(e) => setPassword(e.target.value)}
       />
 
-      <button onClick={handleAuth}>{isLogin ? "Login" : "Create Account"}</button>
+      <button onClick={handleAuth}>
+        {isLogin ? t("auth.login") : t("auth.create_account")}
+      </button>
 
       <p>
-        {isLogin ? "No account?" : "Already have one?"}{" "}
+        {isLogin ? t("auth.no_account") : t("auth.have_account")}{" "}
         <span
           className="link"
           onClick={() => {
@@ -62,7 +66,7 @@ export default function Auth() {
             setError("");
           }}
         >
-          {isLogin ? "Sign up" : "Login"}
+          {isLogin ? t("auth.signup") : t("auth.login")}
         </span>
       </p>
 

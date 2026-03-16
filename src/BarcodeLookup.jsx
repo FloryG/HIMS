@@ -1,8 +1,10 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import BarcodeScanner from "./BarcodeScanner";
 import TagPicker from "./TagPicker";
 import { supabase } from "./supabaseClient";
 import { DEFAULT_SECTIONS } from "./householdService";
+import { useI18n } from "./i18n";
+import { buildNameTranslations, pickTranslation } from "./localize";
 import {
   applyLocalMutation,
   enqueueAction,
@@ -22,8 +24,17 @@ const STATES = [
 
 const normalizeTag = (value) => (value || "").trim().toLowerCase();
 
-export default function BarcodeLookup({ user, householdId, sections = [], tagRules = [] }) {
-  const [mode, setMode] = useState("manual");
+export default function BarcodeLookup({
+  user,
+  householdId,
+  sections = [],
+  tagRules = [],
+  onManageTags,
+  uiPrefs,
+}) {
+  const { t, lang } = useI18n();
+  const safeDefaultMode = uiPrefs?.defaultScanMode === "camera" ? "camera" : "manual";
+  const [mode, setMode] = useState(safeDefaultMode);
   const [barcode, setBarcode] = useState("");
   const [product, setProduct] = useState(null);
   const [manualMode, setManualMode] = useState(false);
@@ -38,8 +49,24 @@ export default function BarcodeLookup({ user, householdId, sections = [], tagRul
   const [state, setState] = useState("unopened");
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
-  const [continuousScan, setContinuousScan] = useState(false);
+  const [continuousScan, setContinuousScan] = useState(Boolean(uiPrefs?.continuousScan));
   const scannerPaused = mode === "camera" && Boolean(product || manualMode) && !continuousScan;
+  const currentLang = uiPrefs?.language || lang || "en";
+  const stateOptions = useMemo(
+    () => [
+      { value: "unopened", label: t("state.unopened") },
+      { value: "opened", label: t("state.opened") },
+      { value: "nearing expiry", label: t("state.nearing_expiry") },
+      { value: "soon consumed", label: t("state.soon_consumed") },
+      { value: "none left", label: t("state.none_left") },
+    ],
+    [t]
+  );
+  const productName = useMemo(() => {
+    if (!product) return "";
+    const translations = buildNameTranslations(product);
+    return pickTranslation(translations, product?.product_name, currentLang);
+  }, [product, currentLang]);
 
   const sectionOptions = sections.length
     ? sections.map((s) => s.name)
@@ -95,6 +122,18 @@ export default function BarcodeLookup({ user, householdId, sections = [], tagRul
     fetchTags();
   }, [householdId, tagRules]);
 
+  useEffect(() => {
+    if (uiPrefs?.defaultScanMode) {
+      setMode(uiPrefs.defaultScanMode === "camera" ? "camera" : "manual");
+    }
+  }, [uiPrefs?.defaultScanMode]);
+
+  useEffect(() => {
+    if (typeof uiPrefs?.continuousScan === "boolean") {
+      setContinuousScan(uiPrefs.continuousScan);
+    }
+  }, [uiPrefs?.continuousScan]);
+
   const fetchProduct = async (code) => {
     if (!code) return;
     setMsg("");
@@ -111,7 +150,7 @@ export default function BarcodeLookup({ user, householdId, sections = [], tagRul
       setProduct(data.product);
       setManualMode(false);
     } catch (e) {
-      setErr("Product not found or network error. You can add it manually.");
+      setErr(t("scanner.product_not_found"));
       setManualMode(true);
       console.error(e);
     }
@@ -154,12 +193,22 @@ export default function BarcodeLookup({ user, householdId, sections = [], tagRul
   const handleSave = async () => {
     if (!householdId) return;
     const tags = selectedTags;
+    const trimmedManualName = manualName.trim();
+    const nameTranslations = manualMode
+      ? (trimmedManualName
+        ? { original: trimmedManualName, [currentLang]: trimmedManualName }
+        : null)
+      : buildNameTranslations(product);
+    const displayName = manualMode
+      ? trimmedManualName
+      : pickTranslation(nameTranslations, product?.product_name, currentLang);
 
     const payload = {
       household_id: householdId,
       user_id: user.id,
       barcode: barcode || null,
-      name: manualMode ? manualName.trim() : product?.product_name,
+      name: displayName,
+      name_translations: nameTranslations,
       brand: manualMode ? manualBrand.trim() : product?.brands,
       image_url: manualMode ? manualImageUrl.trim() : product?.image_front_small_url,
       nutriscore: manualMode ? null : product?.nutriscore_grade,
@@ -172,16 +221,16 @@ export default function BarcodeLookup({ user, householdId, sections = [], tagRul
     };
 
     if (!payload.name) {
-      setErr("Please provide a product name.");
+      setErr(t("scanner.name_required"));
       return;
     }
 
     setErr("");
-    setMsg("Saving...");
+    setMsg(t("scanner.saving"));
 
     if (!navigator.onLine) {
       saveOfflineItem(payload);
-      setMsg("Saved offline. Will sync when online.");
+      setMsg(t("scanner.saved_offline"));
       setProduct(null);
       setManualMode(false);
       setManualName("");
@@ -203,7 +252,7 @@ export default function BarcodeLookup({ user, householdId, sections = [], tagRul
 
     if (insertError) {
       console.error(insertError);
-      setErr("Failed to save product.");
+      setErr(t("scanner.save_failed"));
       setMsg("");
       return;
     }
@@ -230,7 +279,7 @@ export default function BarcodeLookup({ user, householdId, sections = [], tagRul
       }
     }
 
-    setMsg("Saved successfully!");
+    setMsg(t("scanner.saved"));
     setProduct(null);
     setManualMode(false);
     setManualName("");
@@ -245,20 +294,20 @@ export default function BarcodeLookup({ user, householdId, sections = [], tagRul
 
   return (
     <div className="lookup-container">
-      <h2 className="title">Barcode Lookup</h2>
+      <h2 className="title">{t("scanner.title")}</h2>
 
       <div className="mode-buttons">
         <button
           className={mode === "manual" ? "active" : ""}
           onClick={() => setMode("manual")}
         >
-          Manual
+          {t("scanner.manual")}
         </button>
         <button
           className={mode === "camera" ? "active" : ""}
           onClick={() => setMode("camera")}
         >
-          Camera
+          {t("scanner.camera")}
         </button>
       </div>
 
@@ -267,9 +316,9 @@ export default function BarcodeLookup({ user, householdId, sections = [], tagRul
           <input
             value={barcode}
             onChange={(e) => setBarcode(e.target.value)}
-            placeholder="Enter barcode..."
+            placeholder={t("scanner.enter_barcode")}
           />
-          <button onClick={() => fetchProduct(barcode)}>Search</button>
+          <button onClick={() => fetchProduct(barcode)}>{t("scanner.search")}</button>
           <button
             className="secondary-btn"
             onClick={() => {
@@ -278,7 +327,7 @@ export default function BarcodeLookup({ user, householdId, sections = [], tagRul
               setErr("");
             }}
           >
-            Manual entry
+            {t("scanner.manual_entry")}
           </button>
         </div>
       )}
@@ -286,7 +335,7 @@ export default function BarcodeLookup({ user, householdId, sections = [], tagRul
       {mode === "camera" && (
         <div className="camera-entry">
           <BarcodeScanner onDetected={handleDetected} paused={scannerPaused} />
-          <p className="hint">Point your camera at a barcode</p>
+          <p className="hint">{t("scanner.hint")}</p>
           <div className="scan-options">
             <label className="scan-option">
               <input
@@ -294,12 +343,12 @@ export default function BarcodeLookup({ user, householdId, sections = [], tagRul
                 checked={continuousScan}
                 onChange={(e) => setContinuousScan(e.target.checked)}
               />
-              Continuous scan
+              {t("scanner.continuous")}
             </label>
           </div>
           {scannerPaused && (
             <button className="secondary-btn" onClick={resetScan}>
-              Scan another
+              {t("scanner.scan_another")}
             </button>
           )}
         </div>
@@ -313,47 +362,47 @@ export default function BarcodeLookup({ user, householdId, sections = [], tagRul
           {!manualMode && (
             <img
               src={product?.image_front_small_url}
-              alt={product?.product_name}
+              alt={productName}
               className="product-img"
             />
           )}
           {manualMode ? (
             <>
               <label>
-                Name:
+                {t("scanner.name")}:
                 <input
                   value={manualName}
                   onChange={(e) => setManualName(e.target.value)}
-                  placeholder="Product name"
+                  placeholder={t("scanner.name")}
                 />
               </label>
               <label>
-                Brand:
+                {t("scanner.brand")}:
                 <input
                   value={manualBrand}
                   onChange={(e) => setManualBrand(e.target.value)}
-                  placeholder="Brand"
+                  placeholder={t("scanner.brand")}
                 />
               </label>
               <label>
-                Image URL:
+                {t("scanner.image_url")}:
                 <input
                   value={manualImageUrl}
                   onChange={(e) => setManualImageUrl(e.target.value)}
-                  placeholder="https://..."
+                  placeholder={t("scanner.image_placeholder")}
                 />
               </label>
             </>
           ) : (
             <>
-              <h3>{product?.product_name}</h3>
-              <p>Brand: {product?.brands}</p>
-              <p>Nutri-Score: {product?.nutriscore_grade?.toUpperCase() || "N/A"}</p>
+              <h3>{productName}</h3>
+              <p>{t("scanner.brand")}: {product?.brands}</p>
+              <p>{t("scanner.nutriscore")}: {product?.nutriscore_grade?.toUpperCase() || "N/A"}</p>
             </>
           )}
 
           <label>
-            Section:
+            {t("scanner.section")}:
             <select value={section} onChange={(e) => setSection(e.target.value)}>
               {sectionOptions.map((s) => (
                 <option key={s}>{s}</option>
@@ -362,7 +411,7 @@ export default function BarcodeLookup({ user, householdId, sections = [], tagRul
           </label>
 
           <label>
-            Expiry Date:
+            {t("scanner.expiry")}:
             <input
               type="date"
               value={expiryDate}
@@ -371,7 +420,7 @@ export default function BarcodeLookup({ user, householdId, sections = [], tagRul
           </label>
 
           <label>
-            Quantity:
+            {t("scanner.quantity")}:
             <input
               type="number"
               value={quantity}
@@ -381,25 +430,28 @@ export default function BarcodeLookup({ user, householdId, sections = [], tagRul
           </label>
 
           <label>
-            State:
+            {t("scanner.state")}:
             <select value={state} onChange={(e) => setState(e.target.value)}>
-              {STATES.map((s) => (
-                <option key={s}>{s}</option>
+              {stateOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
               ))}
             </select>
           </label>
 
-          <label>
-            Tags:
+          <div className="tag-field">
+            <span className="tag-label">{t("scanner.tags")}</span>
             <TagPicker
               availableTags={availableTags}
               selectedTags={selectedTags}
               onChange={setSelectedTags}
+              onManageTags={onManageTags}
             />
-          </label>
+          </div>
 
           <button className="save-btn" onClick={handleSave}>
-            Save to Inventory
+            {t("scanner.save")}
           </button>
         </div>
       )}

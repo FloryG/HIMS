@@ -67,6 +67,7 @@ create table if not exists public.items (
   user_id uuid not null references auth.users(id) on delete cascade,
   barcode text,
   name text,
+  name_translations jsonb,
   brand text,
   image_url text,
   nutriscore text,
@@ -106,6 +107,7 @@ create table if not exists public.item_history (
 -- Compatibility: ensure columns exist if tables were created earlier
 alter table if exists public.items
   add column if not exists household_id uuid references public.households(id) on delete cascade,
+  add column if not exists name_translations jsonb,
   add column if not exists tags text[] not null default '{}',
   add column if not exists updated_at timestamptz not null default now();
 

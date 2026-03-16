@@ -15,7 +15,7 @@
 
 .household-tab {
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--surface);
   color: var(--ink);
   padding: 0.45rem 0.9rem;
   border-radius: 999px;
@@ -48,16 +48,29 @@
   align-items: center;
 }
 
+.household-switch-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.household-switch-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 .household-row input,
 .household-row select {
   padding: 0.5rem 0.6rem;
   border-radius: 10px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--border);
+  background: var(--surface);
 }
 
 .household-muted {
   margin: 0;
-  color: #6b7280;
+  color: var(--muted);
 }
 
 .tag-rule-list {
@@ -73,16 +86,16 @@
   align-items: center;
   padding: 0.5rem 0.7rem;
   border-radius: 12px;
-  border: 1px solid #e7d8c8;
-  background: #fffaf2;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
 }
 
 .household-success {
-  color: #2f8f83;
+  color: var(--accent-2);
   margin: 0;
 }
 
 .household-error {
-  color: #c6554f;
+  color: var(--danger-ink);
   margin: 0;
 }

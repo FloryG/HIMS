@@ -1,14 +1,9 @@
-﻿import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BrowserMultiFormatReader } from "@zxing/browser";
-
-const getDeviceLabel = (device, index) => {
-  if (device.label && device.label.trim()) {
-    return device.label;
-  }
-  return `Camera ${index + 1}`;
-};
+import { useI18n } from "./i18n";
 
 export default function BarcodeScanner({ onDetected, paused = false }) {
+  const { t } = useI18n();
   const videoRef = useRef(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -106,7 +101,7 @@ export default function BarcodeScanner({ onDetected, paused = false }) {
       try {
         const list = await BrowserMultiFormatReader.listVideoInputDevices();
         if (!list.length) {
-          setError("No camera found. Use manual entry.");
+          setError(t("scanner.no_camera"));
           setLoading(false);
           return;
         }
@@ -164,7 +159,7 @@ export default function BarcodeScanner({ onDetected, paused = false }) {
         }
       } catch (e) {
         console.error(e);
-        setError("Camera access denied or unavailable. Try manual entry.");
+        setError(t("scanner.camera_denied"));
         setLoading(false);
       }
     }
@@ -181,30 +176,34 @@ export default function BarcodeScanner({ onDetected, paused = false }) {
       setTorchAvailable(false);
       codeReader.reset();
     };
-  }, [onDetected, paused, selectedDeviceId]);
+  }, [onDetected, paused, selectedDeviceId, t]);
 
   return (
     <div className="scanner-container">
-      {loading && <p className="status">Loading camera...</p>}
-      {paused && !loading && (
-        <p className="status">Camera paused. Ready to scan another item.</p>
-      )}
+      {loading && <p className="status">{t("scanner.camera_loading")}</p>}
+      {paused && !loading && <p className="status">{t("scanner.camera_paused")}</p>}
       {error && <p className="error">{error}</p>}
       <video ref={videoRef} className="scanner-video" autoPlay playsInline muted />
 
       <div className="scanner-controls">
         {devices.length > 1 && (
           <label className="scanner-control">
-            <span>Camera</span>
+            <span>{t("scanner.camera_label")}</span>
             <select
               value={selectedDeviceId}
               onChange={(e) => setSelectedDeviceId(e.target.value)}
             >
-              {devices.map((device, index) => (
-                <option key={device.deviceId} value={device.deviceId}>
-                  {getDeviceLabel(device, index)}
-                </option>
-              ))}
+              {devices.map((device, index) => {
+                const label =
+                  device.label && device.label.trim()
+                    ? device.label
+                    : t("scanner.camera_option", { index: index + 1 });
+                return (
+                  <option key={device.deviceId} value={device.deviceId}>
+                    {label}
+                  </option>
+                );
+              })}
             </select>
           </label>
         )}
@@ -215,14 +214,14 @@ export default function BarcodeScanner({ onDetected, paused = false }) {
             className={`control-btn ${soundOn ? "active" : ""}`}
             onClick={() => setSoundOn((prev) => !prev)}
           >
-            Sound
+            {t("scanner.sound")}
           </button>
           <button
             type="button"
             className={`control-btn ${vibrationOn ? "active" : ""}`}
             onClick={() => setVibrationOn((prev) => !prev)}
           >
-            Vibrate
+            {t("scanner.vibrate")}
           </button>
           {torchAvailable && (
             <button
@@ -230,7 +229,7 @@ export default function BarcodeScanner({ onDetected, paused = false }) {
               className={`control-btn ${torchOn ? "active" : ""}`}
               onClick={() => setTorch(!torchOn)}
             >
-              Flash
+              {t("scanner.flash")}
             </button>
           )}
         </div>

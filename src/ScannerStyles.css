@@ -40,7 +40,8 @@
   width: 70%;
   padding: 0.5rem;
   border-radius: 8px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border);
+  background: var(--surface);
 }
 
 .manual-entry button {
@@ -92,6 +93,8 @@
 .scanner-video {
   width: 100%;
   max-width: 350px;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(31, 42, 50, 0.2);
 }
@@ -117,7 +120,7 @@
   padding: 0.45rem 0.6rem;
   border-radius: 10px;
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--surface);
   color: var(--ink);
 }
 
@@ -130,7 +133,7 @@
 
 .control-btn {
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--surface);
   color: var(--ink);
   padding: 0.4rem 0.8rem;
   border-radius: 999px;
@@ -151,7 +154,7 @@
 }
 
 .hint {
-  color: #777;
+  color: var(--muted);
   font-size: 0.9rem;
 }
 
@@ -167,7 +170,9 @@
 .product-card img {
   display: block;
   margin: auto;
-  max-width: 150px;
+  width: min(220px, 100%);
+  aspect-ratio: 4 / 3;
+  object-fit: contain;
   border-radius: 8px;
 }
 
@@ -176,12 +181,28 @@
   margin: 0.5rem 0;
 }
 
+.tag-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0.5rem 0;
+}
+
+.tag-label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  font-weight: 600;
+}
+
 .product-card select,
 .product-card input {
   width: 100%;
   padding: 0.4rem;
   border-radius: 8px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border);
+  background: var(--surface);
 }
 
 .save-btn {
@@ -201,17 +222,42 @@
 }
 
 .error {
-  color: #c6554f;
+  color: var(--danger-ink);
   font-weight: bold;
   text-align: center;
 }
 
 .success {
-  color: #2f8f83;
+  color: var(--accent-2);
   text-align: center;
 }
 
 .status {
-  color: #999;
+  color: var(--muted);
   text-align: center;
+}
+
+@media (max-width: 720px) {
+  .lookup-container {
+    padding: 1.1rem;
+  }
+
+  .manual-entry {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .manual-entry input {
+    width: 100%;
+  }
+
+  .manual-entry button {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .mode-buttons {
+    flex-wrap: wrap;
+  }
 }
